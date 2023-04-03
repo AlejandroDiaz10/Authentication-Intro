@@ -4,8 +4,8 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
-// const encrypt = require("mongoose-encryption"); // Encrypting passwords
-const md5 = require("md5"); // Hashing passwords
+const bcrypt = require("bcrypt"); // Salt and hashing
+const saltRounds = 10;
 const port = 8080;
 
 const app = express();
@@ -44,19 +44,22 @@ app.get("/login", (req, res) => {
 
 app.post("/login", async (req, res) => {
     const username = req.body.username;
-    const pwd = md5(req.body.password); // Hashing
+    const pwd = req.body.password; // Hashing
 
     await User.findOne({ email: username })
         .then(user => {
             if (user === null) {
                 console.log("Unregistered email");
                 return res.render("login");
-            } else if (user.pwd !== pwd) {
-                console.log("Incorrect password");
-                return res.render("login");
             } else {
-                console.log(user.pwd);
-                return res.render("secrets");
+                bcrypt.compare(pwd, user.pwd, function (err, result) {
+                    if (result === true) {
+                        return res.render("secrets");
+                    } else {
+                        console.log("Incorrect password");
+                        return res.render("login");
+                    }
+                });
             }
         })
         .catch(err => console.log(err));
@@ -66,13 +69,15 @@ app.get("/register", (req, res) => {
     res.render("register");
 });
 
-app.post("/register", async (req, res) => {
-    const newUser = new User({
-        email: req.body.username,
-        pwd: md5(req.body.password), // Hashing
-    });
+app.post("/register", (req, res) => {
+    bcrypt.hash(req.body.password, saltRounds, async function (err, hash) {
+        const newUser = new User({
+            email: req.body.username,
+            pwd: hash,
+        });
 
-    await newUser.save()
-        .then(() => res.render("secrets"))
-        .catch(err => console.log(err));
+        await newUser.save()
+            .then(() => res.render("secrets"))
+            .catch(err => console.log(err));
+    });
 });
