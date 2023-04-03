@@ -6,9 +6,12 @@ const ejs = require("ejs");
 const mongoose = require("mongoose");
 const port = 8080;
 
-const session = require('express-session'); // Cookies and sessions
-const passport = require("passport"); // Cookies and sessions
-const passportLocalMongoose = require("passport-local-mongoose"); // Cookies and sessions
+const session = require('express-session');
+const passport = require("passport");
+const passportLocalMongoose = require("passport-local-mongoose");
+
+const GoogleStrategy = require('passport-google-oauth20').Strategy; // Google OAuth
+const findOrCreate = require("mongoose-findorcreate");
 
 const app = express();
 app.use(express.static("public"));
@@ -22,7 +25,7 @@ app.use(session({
 }));
 
 app.use(passport.initialize());
-app.use(passport.session()); // Passport is going to manage our sessions
+app.use(passport.session());
 
 
 mongoose.connect(process.env.MONGODB_URI)
@@ -35,25 +38,67 @@ mongoose.connect(process.env.MONGODB_URI)
 const userSchema = new mongoose.Schema({
     username: {
         type: String,
-        required: true,
     },
     password: {
+        type: String,
+    },
+    googleId: {
         type: String,
     },
 });
 
 userSchema.plugin(passportLocalMongoose);
+userSchema.plugin(findOrCreate);
 
 const User = new mongoose.model("User", userSchema);
 
 passport.use(User.createStrategy());
-passport.serializeUser(User.serializeUser());
-passport.deserializeUser(User.deserializeUser());
+passport.serializeUser(function (user, cb) {
+    process.nextTick(function () {
+        return cb(null, {
+            id: user.id,
+            username: user.username,
+            // picture: user.picture
+        });
+    });
+});
+
+passport.deserializeUser(function (user, cb) {
+    process.nextTick(function () {
+        return cb(null, user);
+    });
+});
+
+passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: "http://localhost:8080/auth/google/secrets",
+    userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo",
+},
+    function (accessToken, refreshToken, profile, cb) {
+        // console.log(profile);
+        User.findOrCreate({ googleId: profile.id }, function (err, user) {
+            return cb(err, user);
+        });
+    }
+));
 
 
 app.get("/", (req, res) => {
     res.render("home");
 });
+
+app.get('/auth/google',
+    passport.authenticate('google', { scope: ["profile"] })
+);
+
+// Redirection happens because it is configured like this in the Google Cloud project
+
+app.get("/auth/google/secrets",
+    passport.authenticate("google", { failureRedirect: '/login' }),
+    function (req, res) {
+        res.redirect('/secrets');
+    });
 
 app.get("/login", (req, res) => {
     res.render("login");
