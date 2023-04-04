@@ -46,7 +46,7 @@ const userSchema = new mongoose.Schema({
         type: String,
     },
     secret: {
-        type: String,
+        type: [String],
     }
 });
 
@@ -61,7 +61,6 @@ passport.serializeUser(function (user, cb) {
         return cb(null, {
             id: user.id,
             username: user.username,
-            // picture: user.picture
         });
     });
 });
@@ -79,7 +78,6 @@ passport.use(new GoogleStrategy({
     userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo",
 },
     function (accessToken, refreshToken, profile, cb) {
-        // console.log(profile);
         User.findOrCreate({ googleId: profile.id }, function (err, user) {
             return cb(err, user);
         });
@@ -153,7 +151,7 @@ app.post("/register", (req, res) => {
 
 app.get("/secrets", (req, res) => {
     User.find({ "secret": { $ne: null } })
-        .then(secrets => res.render("secrets", { allUsersWithSecrets: secrets }))
+        .then(UsersWithSecrets => res.render("secrets", { allUsersWithSecrets: UsersWithSecrets }))
         .catch(err => console.log(err));
 });
 
@@ -166,11 +164,9 @@ app.get("/submit", (req, res) => {
 });
 
 app.post("/submit", async (req, res) => {
-    // console.log(req.user);
-    // console.log(req.user.id);
     await User.findById(req.user.id)
         .then(async (foundUser) => {
-            foundUser.secret = req.body.secret;
+            foundUser.secret.push(req.body.secret);
             await foundUser.save()
                 .then(() => res.redirect("/secrets"))
                 .catch(err => console.log(err));
