@@ -25,3 +25,21 @@ OAuth (Open Authorization) is an authorization protocol that allows a user to gi
 Developers can make their apps more accessible to users, since users don't need to create new accounts to access them. \
 Applications that use OAuth can be more secure and reliable, since the risks associated with storing user passwords are eliminated. \
 * P.D. Before using passport-google-oauth20, you must register an application with Google. If you have not already done so, a new project can be created in the [Google Developers Console](https://console.developers.google.com/)
+
+## Try it yourslef!
+
+### Prerequisites
+* MongoDB
+* Google Cloud Project 
+
+### Download the dependencies used in this project
+Type in the terminal:
+```bash
+npm i
+```
+
+### Run your local server
+Type in the terminal:
+```bash
+nodemon app.js
+```
